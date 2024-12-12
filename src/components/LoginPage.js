@@ -13,7 +13,7 @@ function LoginPage({ xmppManager }) {
 
     if (username && password) {
       try {
-        const service = "wss://auth.nasa.makeen.local:10601/xmpp-websocket";
+        const service = "wss://auth.ahmed:10601/xmpp-websocket";
 
         console.log("Attempting to connect...");
         await xmppManager.connect(service, username, password);
