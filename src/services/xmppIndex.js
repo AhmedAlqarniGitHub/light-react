@@ -4,55 +4,30 @@ class XmppManager {
   constructor() {
     this.client = null;
     this.contactListeners = [];
-    this.messageListeners = [];
     this.isConnected = false;
-    this.connecting = false; // Flag to prevent multiple simultaneous connection attempts
   }
 
   async connect(service, username, password) {
-    if (this.isConnected) {
-      console.log("Already connected to the XMPP server. Skipping re-connect.");
-      return;
-    }
-
-    if (this.connecting) {
-      console.log("Connection attempt already in progress. Please wait.");
-      return;
-    }
-
     if (!this.client) {
       this.client = new MsgXmppClient(service, username, password);
 
+      // Handle contact updates
       this.client.addEventListener(eventList.CONTACT_STATUS_CHANGED, (contacts) => {
         this.updateContacts(contacts);
       });
-
-      this.client.addEventListener(eventList.MESSAGE_RECEIVED, (message) => {
-        this.updateMessages(message);
-      });
-
-      this.client.addEventListener("offline", () => {
-        this.isConnected = false;
-        this.connecting = false;
-        console.log("Disconnected from XMPP server.");
-      });
     }
 
-    this.connecting = true;
+    if (!this.isConnected) {
+      try {
+        console.log("Connecting to XMPP server...");
+        await this.client.connect();
+        this.isConnected = true;
 
-    try {
-      console.log("Connecting to XMPP server...");
-      await this.client.connect();
-      this.isConnected = true;
-      this.connecting = false;
-      console.log("XMPP connection established successfully.");
-    } catch (error) {
-      this.connecting = false;
-      console.error("XMPP connection error:", error.message);
-      if (error.message.includes("not-authorized")) {
-        throw new Error("not-authorized");
-      } else {
-        throw new Error("connection-failed");
+        // Fetch roster and probe presence after login
+        await this.client.getRoster();
+      } catch (error) {
+        console.error("XMPP connection error:", error.message);
+        throw error;
       }
     }
   }
@@ -60,60 +35,42 @@ class XmppManager {
   addEventListener(event, callback) {
     if (event === eventList.CONTACT_STATUS_CHANGED) {
       this.contactListeners.push(callback);
-    } else if (event === eventList.MESSAGE_RECEIVED) {
-      this.messageListeners.push(callback);
     } else if (this.client) {
       this.client.addEventListener(event, callback);
     }
   }
 
   updateContacts(contacts) {
-    console.log("Contacts updated:", contacts);
     this.contactListeners.forEach((callback) => callback(contacts));
   }
 
-  updateMessages(message) {
-    console.log("Message received:", message);
-    this.messageListeners.forEach((callback) => callback(message));
-  }
-
   sendMessage(to, body) {
-    if (this.client && this.isConnected) {
+    if (this.client) {
       this.client.sendMessage(to, body);
-    } else {
-      console.warn("Cannot send message: Not connected.");
     }
   }
 
-  addUser(jid, name) {
-    if (this.client && this.isConnected) {
-      this.client.addUser(jid, name);
-    } else {
-      console.warn("Cannot add user: Not connected.");
+  async addUser(jid, name) {
+    if (this.client) {
+      await this.client.addUser(jid, name);
     }
   }
 
-  removeUser(jid) {
-    if (this.client && this.isConnected) {
-      this.client.removeUser(jid);
-    } else {
-      console.warn("Cannot remove user: Not connected.");
+  async removeUser(jid) {
+    if (this.client) {
+      await this.client.removeUser(jid);
     }
   }
 
-  blockContact(jid) {
-    if (this.client && this.isConnected) {
-      this.client.blockContact(jid);
-    } else {
-      console.warn("Cannot block user: Not connected.");
+  async blockContact(jid) {
+    if (this.client) {
+      await this.client.blockContact(jid);
     }
   }
 
-  unblockContact(jid) {
-    if (this.client && this.isConnected) {
-      this.client.unblockContact(jid);
-    } else {
-      console.warn("Cannot unblock user: Not connected.");
+  async unblockContact(jid) {
+    if (this.client) {
+      await this.client.unblockContact(jid);
     }
   }
 }

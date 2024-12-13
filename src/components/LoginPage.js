@@ -13,15 +13,17 @@ function LoginPage({ xmppManager }) {
 
     if (username && password) {
       try {
-        
-
         const service = process.env.REACT_APP_AUTH_DOMAIN;
 
         console.log("Attempting to connect...");
         await xmppManager.connect(service, username, password);
 
+        // Store credentials for reloading
+        sessionStorage.setItem("username", username);
+        sessionStorage.setItem("password", password);
+
         console.log("Connection successful, navigating to home...");
-        navigate("/home", { state: { username } });
+        navigate("/home");
       } catch (error) {
         console.error("Login error:", error.message);
 

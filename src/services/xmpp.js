@@ -1,39 +1,33 @@
-import events from 'events';
-import { client, xml } from '@xmpp/client';
-import debug from '@xmpp/debug';
-import pino from 'pino';
+import events from "events";
+import { client, xml } from "@xmpp/client";
+import debug from "@xmpp/debug";
+import pino from "pino";
 
 process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
 
 const logger = pino({
   transport: {
-    target: 'pino-pretty',
-    options: {
-      colorize: true,
-    },
+    target: "pino-pretty",
+    options: { colorize: true },
   },
 });
 
 const STATUS = {
-  AWAY: 'away',
-  DND: 'busy',
-  XA: 'away for long',
-  ONLINE: 'online',
-  OFFLINE: 'offline',
+  AWAY: "away",
+  DND: "busy",
+  XA: "away for long",
+  ONLINE: "online",
+  OFFLINE: "offline",
+  UNKNOWN: "unknown",
 };
 
 const eventList = {
-  CONTACT_STATUS_CHANGED: 'CONTACT_STATUS_CHANGED',
-  MESSAGE_RECEIVED: 'MESSAGE_RECEIVED',
-  VMSG: 'VMSG',
-  CMSG: 'CMSG',
-  PING: 'PING',
-  ONLINE: 'online',
-  OFFLINE: 'offline',
+  CONTACT_STATUS_CHANGED: "CONTACT_STATUS_CHANGED",
+  MESSAGE_RECEIVED: "MESSAGE_RECEIVED",
 };
 
 function bareJID(jid) {
-  return jid ? jid.split('/')[0] : jid;
+  return jid ? jid.split("/")[0] : jid;
 }
 
 class MsgXmppClient {
@@ -48,9 +42,7 @@ class MsgXmppClient {
     this.#username = username;
     this.#password = password;
 
-    // Add a unique resource to help avoid conflicts
-    const uniqueResource = 'MsgClientOffice-' + Date.now();
-
+    const uniqueResource = `MsgClientOffice-${Date.now()}`;
     this.xmpp = client({
       service: this.#service,
       username: this.#username,
@@ -66,32 +58,24 @@ class MsgXmppClient {
   }
 
   initializeXmppHandlers() {
-    debug(this.xmpp, true); // Log traffic
+    debug(this.xmpp, true);
 
-    this.xmpp.on('online', async (address) => {
+    this.xmpp.on("online", async (address) => {
       this.currentUser = address.toString();
       console.log(`Connected as ${address}`);
       await this.getRoster();
-      await this.xmpp.send(xml('presence'));
+      await this.xmpp.send(xml("presence"));
     });
 
-    this.xmpp.on('error', (err) => {
+    this.xmpp.on("error", (err) => {
       logger.error(`XMPP Error: ${err.message}`);
     });
 
-    // Do NOT call this.offline() here to avoid triggering loops
-    this.xmpp.on('offline', () => {
-      logger.info('Offline event triggered by XMPP client.');
-      // Just log offline; let the manager handle reconnection if needed
-    });
-
-    this.xmpp.on('stanza', (stanza) => {
-      if (stanza.is('message')) {
+    this.xmpp.on("stanza", (stanza) => {
+      if (stanza.is("message")) {
         this.handleMessage(stanza);
-      } else if (stanza.is('presence')) {
+      } else if (stanza.is("presence")) {
         this.handlePresence(stanza);
-      } else {
-        logger.warn(`Unknown stanza: ${stanza.toString()}`);
       }
     });
   }
@@ -101,16 +85,8 @@ class MsgXmppClient {
       await this.xmpp.start();
     } catch (err) {
       logger.error(`Failed to start XMPP client: ${err.message}`);
-      throw new Error(err.message);
+      throw err;
     }
-  }
-
-  // Remove the automatic calling of offline in the offline event.
-  // This method can be manually invoked if needed when truly disconnecting.
-  offline() {
-    logger.debug('Sending unavailable presence and stopping XMPP.');
-    this.xmpp.send(xml('presence', { type: 'unavailable' })).catch(() => {});
-    this.xmpp.stop();
   }
 
   addEventListener(event, callback) {
@@ -122,166 +98,103 @@ class MsgXmppClient {
   }
 
   async getRoster() {
-    logger.info('Fetching roster...');
-    const req = xml('query', 'jabber:iq:roster');
+    logger.info("Fetching roster...");
+    const req = xml("query", "jabber:iq:roster");
     const res = await this.xmpp.iqCaller.get(req).catch((err) => {
       logger.error(`Failed to fetch roster: ${err.message}`);
     });
 
     if (res) {
-      this.contacts = res.getChildren('item').map((item) => ({
+      this.contacts = res.getChildren("item").map((item) => ({
         jid: item.attrs.jid,
         name: item.attrs.name || item.attrs.jid,
         subscription: item.attrs.subscription,
-        presence: STATUS.OFFLINE,
+        presence: STATUS.UNKNOWN, // Initialize presence
       }));
 
-      console.log('Roster updated.');
       this.emitEvent(eventList.CONTACT_STATUS_CHANGED, this.contacts);
+
+      // Probe presence for all contacts
+      await this.updateContactStatuses();
     }
+  }
+
+  async updateContactStatuses() {
+    for (const contact of this.contacts) {
+      await this.probePresence(contact.jid);
+    }
+  }
+
+  async probePresence(jid) {
+    const presenceProbe = xml("presence", { to: jid, type: "probe" });
+    await this.xmpp.send(presenceProbe).catch((err) => {
+      logger.error(`Failed to probe presence for ${jid}: ${err.message}`);
+    });
   }
 
   handlePresence(stanza) {
-    const from = stanza.attrs.from;
-    const type = stanza.attrs.type;
-    const contactJid = bareJID(from);
-
-    logger.info(`Presence received from ${from}`);
-
-    switch (type) {
-      case 'subscribe':
-        // Handle subscribe only if truly needed
-        logger.info(`${from} requests presence subscription.`);
-        this.acceptSubscription(contactJid);
-        this.subscribe(contactJid);
-        break;
-      case 'unsubscribe':
-        logger.info(`${from} unsubscribing from presence.`);
-        this.cancelSubscription(contactJid);
-        break;
-      case 'subscribed':
-        logger.info(`${from} allowed subscription.`);
-        break;
-      case 'unsubscribed':
-        logger.info(`${from} denied/cancelled subscription.`);
-        break;
-      case 'unavailable':
-        logger.info(`${from} went offline.`);
-        this.setContactPresence(contactJid, STATUS.OFFLINE);
-        break;
-      default:
-        if (contactJid !== bareJID(this.currentUser)) {
-          logger.info(`${from} is now online.`);
-          this.setContactPresence(contactJid, STATUS.ONLINE);
-        }
-        break;
+    const from = bareJID(stanza.attrs.from);
+    const type = stanza.attrs.type || "available"; // Default to available
+    const show = stanza.getChildText("show"); // Presence subtype
+    const presenceStatus = show ? STATUS[show.toUpperCase()] || STATUS.ONLINE : STATUS.ONLINE;
+  
+    // Find the contact in the roster
+    const contact = this.contacts.find((c) => c.jid === from);
+  
+    if (contact) {
+      // Update the presence only if the contact exists
+      contact.presence = type === "unavailable" ? STATUS.OFFLINE : presenceStatus;
+  
+      // Emit the updated contacts list
+      this.emitEvent(eventList.CONTACT_STATUS_CHANGED, this.contacts);
+  
+      logger.info(`Presence updated for ${from}: ${contact.presence}`);
+    } else {
+      // Log a warning for unknown presence updates
+      logger.warn(`Received presence for unknown contact: ${from}`);
     }
   }
+  
 
   handleMessage(stanza) {
     const from = stanza.attrs.from;
-    const body = stanza.getChildText('body');
+    const body = stanza.getChildText("body");
     if (body) {
-      logger.info(`Message received from ${from}: ${body}`);
       this.emitEvent(eventList.MESSAGE_RECEIVED, { from, body });
     }
   }
 
-  setContactPresence(jid, presence) {
-    const contact = this.contacts.find((c) => c.jid === jid);
-    if (contact) {
-      contact.presence = presence;
-      // Emitting this event shouldn't cause reconnection logic in XmppManager
-      this.emitEvent(eventList.CONTACT_STATUS_CHANGED, this.contacts);
-    }
-  }
-
   async sendMessage(to, body) {
-    logger.info(`Sending message to ${to}: ${body}`);
-    const msg = xml('message', { type: 'chat', to }, xml('body', {}, body));
+    const msg = xml("message", { type: "chat", to }, xml("body", {}, body));
     await this.xmpp.send(msg).catch((err) => {
       logger.error(`Failed to send message: ${err.message}`);
     });
   }
 
-  async subscribe(jid) {
-    if (!jid) return;
-    logger.info(`Subscribing to ${jid}`);
-    const stanza = xml('presence', { to: jid, type: 'subscribe' });
-    await this.xmpp.send(stanza).catch((err) => logger.error(err));
-  }
-
-  async unsubscribe(jid) {
-    if (!jid) return;
-    logger.info(`Unsubscribing from ${jid}`);
-    const stanza = xml('presence', { to: jid, type: 'unsubscribe' });
-    await this.xmpp.send(stanza).catch((err) => logger.error(err));
-  }
-
-  async acceptSubscription(jid) {
-    if (!jid) return;
-    logger.info(`Accepting subscription from ${jid}`);
-    const stanza = xml('presence', { to: jid, type: 'subscribed' });
-    await this.xmpp.send(stanza).catch((err) => logger.error(err));
-  }
-
-  async cancelSubscription(jid) {
-    if (!jid) return;
-    logger.info(`Cancelling subscription from ${jid}`);
-    const stanza = xml('presence', { to: jid, type: 'unsubscribed' });
-    await this.xmpp.send(stanza).catch((err) => logger.error(err));
-  }
-
   async addUser(jid, name) {
-    if (!jid) return;
-    logger.info(`Adding ${jid} to roster...`);
     const req = xml(
-      'query',
-      { xmlns: 'jabber:iq:roster' },
-      xml('item', { jid, name: name || jid, subscription: 'none' })
+      "query",
+      { xmlns: "jabber:iq:roster" },
+      xml("item", { jid, name: name || jid })
     );
-
-    const res = await this.xmpp.iqCaller.set(req).catch((err) => {
-      logger.error(`Failed to add user ${jid}: ${err.message}`);
-    });
-
-    if (res) {
-      logger.info(`${jid} added to roster.`);
-      await this.getRoster();
-      await this.subscribe(jid);
-    }
+    await this.xmpp.iqCaller.set(req);
+    this.getRoster();
+    await this.subscribe(jid);
   }
 
   async removeUser(jid) {
-    if (!jid) return false;
-    const contact = this.contacts.find((c) => c.jid === jid);
-    if (!contact) return false;
-
-    logger.info(`Removing ${jid} from roster.`);
     const req = xml(
-      'query',
-      { xmlns: 'jabber:iq:roster' },
-      xml('item', { jid, subscription: 'remove' })
+      "query",
+      { xmlns: "jabber:iq:roster" },
+      xml("item", { jid, subscription: "remove" })
     );
-
-    const res = await this.xmpp.iqCaller.set(req).catch((err) => {
-      logger.error(`Failed to remove user ${jid}: ${err.message}`);
-    });
-
-    if (res) {
-      logger.info(`${jid} removed from roster.`);
-      await this.getRoster();
-      return true;
-    }
-    return false;
+    await this.xmpp.iqCaller.set(req);
+    this.getRoster();
   }
 
-  async blockContact(jid) {
-    logger.info(`Blocking contact ${jid}`);
-  }
-
-  async unblockContact(jid) {
-    logger.info(`Unblocking contact ${jid}`);
+  async subscribe(jid) {
+    const stanza = xml("presence", { to: jid, type: "subscribe" });
+    await this.xmpp.send(stanza);
   }
 }
 

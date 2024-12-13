@@ -23,9 +23,26 @@ function App() {
 function AppContent() {
   const [contacts, setContacts] = useState([]);
   const [meetingData, setMeetingData] = useState(null);
-  const navigate = useNavigate(); // Now useNavigate is inside Router context
+  const navigate = useNavigate();
 
   useEffect(() => {
+    const service = process.env.REACT_APP_AUTH_DOMAIN;
+    const username = sessionStorage.getItem("username");
+    const password = sessionStorage.getItem("password");
+
+    if (username && password) {
+      // Reconnect if credentials exist
+      xmppManager
+        .connect(service, username, password)
+        .then(() => {
+          console.log("Reconnected successfully");
+          xmppManager.client.getRoster(); // Fetch roster explicitly
+        })
+        .catch((err) => console.error("Reconnection error:", err.message));
+    } else {
+      navigate("/");
+    }
+
     xmppManager.addEventListener(eventList.CONTACT_STATUS_CHANGED, (updatedContacts) => {
       setContacts([...updatedContacts]);
     });
@@ -50,5 +67,6 @@ function AppContent() {
     </Routes>
   );
 }
+
 
 export default App;
