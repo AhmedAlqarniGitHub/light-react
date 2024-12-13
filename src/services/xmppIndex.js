@@ -73,6 +73,25 @@ class XmppManager {
       await this.client.unblockContact(jid);
     }
   }
+
+async getVCard(jid) {
+  if (this.client) {
+    const vCard = await this.client.getVCard(jid);
+    if (vCard) {
+      // Update the contact in the local contacts list
+      const contact = this.client.contacts.find((c) => c.jid === bareJID(jid));
+      if (contact) {
+        contact.firstName = vCard.firstName || "";
+        contact.lastName = vCard.lastName || "";
+        contact.photo = vCard.photo || "";
+        this.updateContacts(this.client.contacts); // Notify listeners
+      }
+    }
+    return vCard;
+  }
+  return null;
+}
+
 }
 
 export default XmppManager;

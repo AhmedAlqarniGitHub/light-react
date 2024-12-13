@@ -76,7 +76,11 @@ class MsgXmppClient {
         this.handleMessage(stanza);
       } else if (stanza.is("presence")) {
         this.handlePresence(stanza);
-      }
+      } else if (stanza.is('iq')) {
+				this.iqHandel(stanza);
+			} else {
+				logger.warn('unknown stanza:' + stanza.toString());
+			}
     });
   }
 
@@ -138,6 +142,7 @@ class MsgXmppClient {
     const show = stanza.getChildText("show"); // Presence subtype
     const presenceStatus = show ? STATUS[show.toUpperCase()] || STATUS.ONLINE : STATUS.ONLINE;
   
+    console.log(stanza.attrs)
     // Find the contact in the roster
     const contact = this.contacts.find((c) => c.jid === from);
   
@@ -196,6 +201,62 @@ class MsgXmppClient {
     const stanza = xml("presence", { to: jid, type: "subscribe" });
     await this.xmpp.send(stanza);
   }
+
+  /*********** vCard Section XEP-0054: vcard-temp ***********/
+
+/**
+ * Retrieving vCard by sending an IQ-get,
+ * @param {jid | null} jid with null user will retrieves his or her own vCard
+ * @returns {Object | null} Returns the parsed vCard or null if an error occurs
+ */
+async getVCard(jid) {
+  logger.info(`Fetching vCard for ${jid || "current user"} ...`);
+  let para = {};
+  if (!jid) {
+    para = {
+      from: this.currentUser,
+      type: "get",
+      id: "v1",
+    };
+  } else {
+    para = {
+      to: jid,
+      type: "get",
+      id: "v3",
+    };
+  }
+
+  const req = xml("iq", para, xml("vCard", { xmlns: "vcard-temp" }));
+
+  try {
+    const res = await this.xmpp.iqCaller.get(req);
+console.log("ddd",res)
+    const vCard = {};
+    res.getChild("vCard").children.forEach((child) => {
+      if (child.name === "FN") {
+        const [firstName, lastName] = child.text().split(" ");
+        vCard.firstName = firstName || "";
+        vCard.lastName = lastName || "";
+      }
+      if (child.name === "PHOTO") {
+        vCard.photo = child.getChildText("BINVAL") || "";
+      }
+    });
+
+    logger.info(`vCard fetched for ${jid || "current user"}: ${JSON.stringify(vCard)}`);
+    return vCard;
+  } catch (err) {
+    logger.error(`Failed to fetch vCard for ${jid || "current user"}: ${err.message}`);
+    return null;
+  }
+}
+
+async iqHandel(stanza) {
+  logger.debug(`received iq from ${stanza.attrs.from}`);
+console.log(stanza.toString())
+  logger.trace(stanza.toString());
+}
+  
 }
 
 export { MsgXmppClient, eventList };
