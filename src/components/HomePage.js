@@ -1,16 +1,13 @@
-import React from "react";
+// HomePage.js
+import React, { useState } from "react";
 import {
   Container,
-  Card,
-  CardContent,
-  CardActions,
   Typography,
   Button,
-  Grid,
   TextField,
-  Avatar,
+  Grid,
 } from "@mui/material";
-import { useState } from "react";
+import ContactCard from "./ContactCard";
 
 function HomePage({ xmppManager, contacts }) {
   const [addJid, setAddJid] = useState("");
@@ -52,7 +49,7 @@ function HomePage({ xmppManager, contacts }) {
   const handleFetchVCard = async (jid) => {
     if (xmppManager) {
       const vCard = await xmppManager.getVCard(jid);
-      console.log("vcard",jid)
+      console.log("Fetching vCard for", jid);
       if (vCard) {
         console.log(`Fetched vCard for ${jid}: ${JSON.stringify(vCard)}`);
       } else {
@@ -62,7 +59,6 @@ function HomePage({ xmppManager, contacts }) {
       alert("Client not initialized.");
     }
   };
-  
 
   return (
     <Container sx={{ mt: 4 }}>
@@ -108,39 +104,11 @@ function HomePage({ xmppManager, contacts }) {
       <Grid container spacing={2} sx={{ mt: 4 }}>
         {contacts.map((contact) => (
           <Grid item xs={12} sm={6} md={4} key={contact.jid}>
-            <Card>
-              <CardContent>
-                <Avatar
-                  src={contact.photo || ""}
-                  alt={`${contact.firstName || ""} ${contact.lastName || ""}`}
-                  sx={{ width: 56, height: 56, mb: 2 }}
-                />
-                <Typography variant="h6">
-                  {contact.firstName || contact.lastName
-                    ? `${contact.firstName || ""} ${contact.lastName || ""}`
-                    : contact.name || contact.jid}
-                </Typography>
-                <Typography variant="body2" color="textSecondary">
-                  Presence: {contact.presence || "unknown"}
-                </Typography>
-              </CardContent>
-              <CardActions>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={() => sendMessage(contact.jid)}
-                >
-                  Send Message
-                </Button>
-                <Button
-                  variant="outlined"
-                  color="secondary"
-                  onClick={() => handleFetchVCard(contact.jid)}
-                >
-                  Fetch vCard
-                </Button>
-              </CardActions>
-            </Card>
+            <ContactCard
+              contact={contact}
+              sendMessage={sendMessage}
+              handleFetchVCard={handleFetchVCard}
+            />
           </Grid>
         ))}
       </Grid>
