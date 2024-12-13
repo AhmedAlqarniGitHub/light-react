@@ -98,36 +98,35 @@ function HomePage({ xmppManager, contacts, currentUser, onLogout, onThemeChange,
               variant="h6"
               sx={{ mt: 2, fontWeight: "bold", color: "text.primary" }}
             >
-              Start Meeting
+              Start 
             </Typography>
           </>
         ) : (
           <Grid container spacing={2} sx={{ mt: 2 }}>
-          {contacts.map((contact) => (
-            <Grid item xs={12} sm={6} md={4} key={contact.jid}>
-              <ContactCard
-                contact={contact}
-                sendMessage={(jid) => {
-                  const hardcodedMessage = {
-                    type: "chat",
-                    content: "Hello, this is a hardcoded JSON message!",
-                    timestamp: new Date().toISOString(),
-                  };
-                  xmppManager.sendMessage(jid, JSON.stringify(hardcodedMessage));
-                  console.log(`Message sent to ${jid}:`, JSON.stringify(hardcodedMessage));
-                }}
-                handleFetchVCard={async (jid) => {
-                  const vCard = await xmppManager.getVCard(jid);
-                  if (vCard) {
-                    console.log(`Fetched vCard for ${jid}:`, JSON.stringify(vCard));
-                  } else {
-                    console.log(`No vCard found for ${jid}`);
-                  }
-                }}
-              />
-            </Grid>
-          ))}
-        </Grid>
+  {contacts.map((contact) => (
+    <Grid item xs={12} sm={6} md={4} key={contact.jid}>
+      <ContactCard
+        contact={contact}
+        sendMessage={(jid) => {
+          const hardcodedMessage = {
+            type: "chat",
+            content: "Hello, this is a hardcoded JSON message!",
+            timestamp: new Date().toISOString(),
+          };
+          xmppManager.sendMessage(jid, JSON.stringify(hardcodedMessage));
+          console.log(`Message sent to ${jid}:`, JSON.stringify(hardcodedMessage));
+        }}
+        handleRemove={(jid) => {
+          xmppManager.removeUser(jid);
+          console.log(`User removed: ${jid}`);
+        }}
+      />
+    </Grid>
+  ))}
+</Grid>
+
+        
+        
         
         )}
       </Box>
