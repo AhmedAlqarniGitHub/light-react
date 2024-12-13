@@ -20,6 +20,7 @@
     "@xmpp/client": "^0.13.1",
     "@xmpp/debug": "^0.13.0",
     "@xmpp/jid": "^0.13.0",
+    "dotenv": "^16.4.7",
     "events": "^3.3.0",
     "pino-pretty": "^7.1.0",
     "react": "^19.0.0",

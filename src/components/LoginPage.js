@@ -13,7 +13,9 @@ function LoginPage({ xmppManager }) {
 
     if (username && password) {
       try {
-        const service = "wss://auth.ahmed:10601/xmpp-websocket";
+        
+
+        const service = process.env.REACT_APP_AUTH_DOMAIN;
 
         console.log("Attempting to connect...");
         await xmppManager.connect(service, username, password);
