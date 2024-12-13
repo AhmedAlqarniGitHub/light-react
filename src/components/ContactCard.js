@@ -1,4 +1,3 @@
-// ContactCard.js
 import React from "react";
 import { Card, CardContent, CardActions, Typography, Button, Avatar } from "@mui/material";
 
@@ -8,6 +7,17 @@ const ContactCard = ({ contact, sendMessage, handleFetchVCard }) => {
       return `${contact.firstName?.[0] || ""}${contact.lastName?.[0] || ""}`.toUpperCase();
     }
     return contact.jid?.slice(0, 2).toUpperCase();
+  };
+
+  const handleSendMessage = () => {
+    const message = prompt("Enter your message:", "Hello!");
+    if (message) {
+      sendMessage(contact.jid, message);
+    }
+  };
+
+  const handleFetchCard = () => {
+    handleFetchVCard(contact.jid);
   };
 
   return (
@@ -35,18 +45,10 @@ const ContactCard = ({ contact, sendMessage, handleFetchVCard }) => {
         </Typography>
       </CardContent>
       <CardActions>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={() => sendMessage(contact.jid)}
-        >
+        <Button variant="contained" color="primary" onClick={handleSendMessage}>
           Send Message
         </Button>
-        <Button
-          variant="outlined"
-          color="secondary"
-          onClick={() => handleFetchVCard(contact.jid)}
-        >
+        <Button variant="outlined" color="secondary" onClick={handleFetchCard}>
           Fetch vCard
         </Button>
       </CardActions>

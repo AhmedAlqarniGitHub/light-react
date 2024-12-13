@@ -47,8 +47,12 @@ class XmppManager {
   sendMessage(to, body) {
     if (this.client) {
       this.client.sendMessage(to, body);
+      console.log(`Message sent to ${to}: ${body}`);
+    } else {
+      console.error("No XMPP client available to send a message.");
     }
   }
+  
 
   async addUser(jid, name) {
     if (this.client) {
@@ -74,23 +78,27 @@ class XmppManager {
     }
   }
 
-async getVCard(jid) {
-  if (this.client) {
-    const vCard = await this.client.getVCard(jid);
-    if (vCard) {
-      // Update the contact in the local contacts list
-      const contact = this.client.contacts.find((c) => c.jid === bareJID(jid));
-      if (contact) {
-        contact.firstName = vCard.firstName || "";
-        contact.lastName = vCard.lastName || "";
-        contact.photo = vCard.photo || "";
-        this.updateContacts(this.client.contacts); // Notify listeners
+  async getVCard(jid) {
+    if (this.client) {
+      const vCard = await this.client.getVCard(jid);
+      if (vCard) {
+        console.log(`Fetched vCard for ${jid}:`, vCard);
+        const contact = this.client.contacts.find((c) => c.jid === bareJID(jid));
+        if (contact) {
+          contact.firstName = vCard.firstName || "";
+          contact.lastName = vCard.lastName || "";
+          contact.photo = vCard.photo || "";
+          this.updateContacts(this.client.contacts); // Notify listeners
+        }
+      } else {
+        console.log(`No vCard found for ${jid}`);
       }
+      return vCard;
     }
-    return vCard;
+    console.error("No XMPP client available to fetch vCard.");
+    return null;
   }
-  return null;
-}
+  
 
 async disconnect() {
   if (this.client) {

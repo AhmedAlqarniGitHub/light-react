@@ -1,16 +1,19 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Container,
   Box,
   Typography,
   Avatar,
-  Button,
   IconButton,
   CircularProgress,
+  Grid,
 } from "@mui/material";
-import { VideoCall, Logout, Contacts, LightMode, DarkMode } from "@mui/icons-material";
+import { Logout, Contacts, LightMode, DarkMode, VideoCall } from "@mui/icons-material";
+import ContactCard from "./ContactCard";
 
-function HomePage({ xmppManager, currentUser, onLogout, onThemeChange, isDarkTheme }) {
+function HomePage({ xmppManager, contacts, currentUser, onLogout, onThemeChange, isDarkTheme }) {
+  const [showContacts, setShowContacts] = useState(false);
+
   if (!currentUser) {
     return (
       <Box
@@ -62,23 +65,71 @@ function HomePage({ xmppManager, currentUser, onLogout, onThemeChange, isDarkThe
         </Box>
       </Box>
 
-      {/* Middle Row: Actions */}
+      {/* Middle Row: Content */}
       <Box
         sx={{
           flex: "1 1 auto",
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
-          justifyContent: "space-around",
+          justifyContent: "center",
           borderBottom: "1px solid",
           borderColor: "divider",
+          overflow: "auto",
         }}
       >
-        <Button variant="contained" color="primary" startIcon={<VideoCall />} size="large">
-          Start Meeting
-        </Button>
-        <Button variant="outlined" color="primary" startIcon={<VideoCall />} size="large">
-          Video Call
-        </Button>
+        {!showContacts ? (
+          <>
+            <IconButton
+              sx={{
+                width: 128,
+                height: 128,
+                bgcolor: "primary.main",
+                color: "white",
+                borderRadius: "50%",
+                "&:hover": {
+                  bgcolor: "primary.dark",
+                },
+              }}
+            >
+              <VideoCall sx={{ fontSize: "4rem" }} />
+            </IconButton>
+            <Typography
+              variant="h6"
+              sx={{ mt: 2, fontWeight: "bold", color: "text.primary" }}
+            >
+              Start Meeting
+            </Typography>
+          </>
+        ) : (
+          <Grid container spacing={2} sx={{ mt: 2 }}>
+          {contacts.map((contact) => (
+            <Grid item xs={12} sm={6} md={4} key={contact.jid}>
+              <ContactCard
+                contact={contact}
+                sendMessage={(jid) => {
+                  const hardcodedMessage = {
+                    type: "chat",
+                    content: "Hello, this is a hardcoded JSON message!",
+                    timestamp: new Date().toISOString(),
+                  };
+                  xmppManager.sendMessage(jid, JSON.stringify(hardcodedMessage));
+                  console.log(`Message sent to ${jid}:`, JSON.stringify(hardcodedMessage));
+                }}
+                handleFetchVCard={async (jid) => {
+                  const vCard = await xmppManager.getVCard(jid);
+                  if (vCard) {
+                    console.log(`Fetched vCard for ${jid}:`, JSON.stringify(vCard));
+                  } else {
+                    console.log(`No vCard found for ${jid}`);
+                  }
+                }}
+              />
+            </Grid>
+          ))}
+        </Grid>
+        
+        )}
       </Box>
 
       {/* Bottom Row: Footer */}
@@ -91,9 +142,9 @@ function HomePage({ xmppManager, currentUser, onLogout, onThemeChange, isDarkThe
         }}
       >
         <IconButton color="error" onClick={onLogout}>
-  <Logout />
-</IconButton>
-        <IconButton color="primary" onClick={() => console.log("Contacts clicked!")}>
+          <Logout />
+        </IconButton>
+        <IconButton color="primary" onClick={() => setShowContacts(!showContacts)}>
           <Contacts />
         </IconButton>
         <IconButton color="primary" onClick={onThemeChange}>
