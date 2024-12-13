@@ -6,7 +6,6 @@ function HomePage({ xmppManager, contacts }) {
   const [addJid, setAddJid] = useState("");
   const [addName, setAddName] = useState("");
   const [removeJid, setRemoveJid] = useState("");
-console.log("aaaa:: "+contacts)
   const sendMessage = (jid) => {
     if (xmppManager) {
       const hardcodedMessage = {
