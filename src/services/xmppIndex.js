@@ -92,6 +92,16 @@ async getVCard(jid) {
   return null;
 }
 
+async disconnect() {
+  if (this.client) {
+    await this.client.offline();
+    this.isConnected = false; // Reset connection state
+    this.client = null; // Optionally reset the client
+    console.log("XMPP Manager: Disconnected successfully.");
+  }
+}
+
+
 }
 
 export default XmppManager;

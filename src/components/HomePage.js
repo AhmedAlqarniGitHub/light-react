@@ -1,117 +1,105 @@
-// HomePage.js
-import React, { useState } from "react";
+import React from "react";
 import {
   Container,
+  Box,
   Typography,
+  Avatar,
   Button,
-  TextField,
-  Grid,
+  IconButton,
+  CircularProgress,
 } from "@mui/material";
-import ContactCard from "./ContactCard";
+import { VideoCall, Logout, Contacts, LightMode, DarkMode } from "@mui/icons-material";
 
-function HomePage({ xmppManager, contacts }) {
-  const [addJid, setAddJid] = useState("");
-  const [addName, setAddName] = useState("");
-  const [removeJid, setRemoveJid] = useState("");
-
-  const sendMessage = (jid) => {
-    if (xmppManager) {
-      const hardcodedMessage = {
-        text: "This is a hardcoded message",
-        datetime: Date.now(),
-      };
-      xmppManager.sendMessage(jid, JSON.stringify(hardcodedMessage));
-      alert(`Message sent to ${jid}`);
-    } else {
-      alert("Client not initialized.");
-    }
-  };
-
-  const handleAddUser = () => {
-    if (xmppManager && addJid) {
-      xmppManager.addUser(addJid, addName);
-      setAddJid("");
-      setAddName("");
-    } else {
-      alert("Please specify a JID to add.");
-    }
-  };
-
-  const handleRemoveUser = () => {
-    if (xmppManager && removeJid) {
-      xmppManager.removeUser(removeJid);
-      setRemoveJid("");
-    } else {
-      alert("Please specify a JID to remove.");
-    }
-  };
-
-  const handleFetchVCard = async (jid) => {
-    if (xmppManager) {
-      const vCard = await xmppManager.getVCard(jid);
-      console.log("Fetching vCard for", jid);
-      if (vCard) {
-        console.log(`Fetched vCard for ${jid}: ${JSON.stringify(vCard)}`);
-      } else {
-        console.log(`No vCard available for ${jid}`);
-      }
-    } else {
-      alert("Client not initialized.");
-    }
-  };
+function HomePage({ xmppManager, currentUser, onLogout, onThemeChange, isDarkTheme }) {
+  if (!currentUser) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
-    <Container sx={{ mt: 4 }}>
-      <Typography variant="h4" gutterBottom textAlign="center">
-        Contacts
-      </Typography>
+    <Container sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+      {/* Top Row: Current User */}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "20%",
+          borderBottom: "1px solid",
+          borderColor: "divider",
+        }}
+      >
+        <Avatar
+          src={currentUser?.photo || ""}
+          alt={`${currentUser?.name || currentUser?.jid}`}
+          sx={{
+            width: 64,
+            height: 64,
+            bgcolor: currentUser?.photo ? "transparent" : "primary.main",
+            mr: 2,
+          }}
+        >
+          {!currentUser?.photo &&
+            (currentUser?.name
+              ? currentUser.name[0].toUpperCase()
+              : currentUser.jid.slice(0, 2).toUpperCase())}
+        </Avatar>
+        <Box>
+          <Typography variant="h6">{currentUser?.name || currentUser?.jid}</Typography>
+          <Typography variant="body2" color="textSecondary">
+            Status: Online
+          </Typography>
+        </Box>
+      </Box>
 
-      <Typography variant="h6" gutterBottom>
-        Add User to Roster
-      </Typography>
-      <TextField
-        label="JID"
-        variant="outlined"
-        value={addJid}
-        onChange={(e) => setAddJid(e.target.value)}
-        sx={{ mr: 2, mb: 2 }}
-      />
-      <TextField
-        label="Name (optional)"
-        variant="outlined"
-        value={addName}
-        onChange={(e) => setAddName(e.target.value)}
-        sx={{ mr: 2, mb: 2 }}
-      />
-      <Button variant="contained" color="primary" onClick={handleAddUser}>
-        Add User
-      </Button>
+      {/* Middle Row: Actions */}
+      <Box
+        sx={{
+          flex: "1 1 auto",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-around",
+          borderBottom: "1px solid",
+          borderColor: "divider",
+        }}
+      >
+        <Button variant="contained" color="primary" startIcon={<VideoCall />} size="large">
+          Start Meeting
+        </Button>
+        <Button variant="outlined" color="primary" startIcon={<VideoCall />} size="large">
+          Video Call
+        </Button>
+      </Box>
 
-      <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
-        Remove User from Roster
-      </Typography>
-      <TextField
-        label="JID"
-        variant="outlined"
-        value={removeJid}
-        onChange={(e) => setRemoveJid(e.target.value)}
-        sx={{ mr: 2, mb: 2 }}
-      />
-      <Button variant="contained" color="secondary" onClick={handleRemoveUser}>
-        Remove User
-      </Button>
-
-      <Grid container spacing={2} sx={{ mt: 4 }}>
-        {contacts.map((contact) => (
-          <Grid item xs={12} sm={6} md={4} key={contact.jid}>
-            <ContactCard
-              contact={contact}
-              sendMessage={sendMessage}
-              handleFetchVCard={handleFetchVCard}
-            />
-          </Grid>
-        ))}
-      </Grid>
+      {/* Bottom Row: Footer */}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-around",
+          height: "15%",
+        }}
+      >
+        <IconButton color="error" onClick={onLogout}>
+  <Logout />
+</IconButton>
+        <IconButton color="primary" onClick={() => console.log("Contacts clicked!")}>
+          <Contacts />
+        </IconButton>
+        <IconButton color="primary" onClick={onThemeChange}>
+          {isDarkTheme ? <LightMode /> : <DarkMode />}
+        </IconButton>
+      </Box>
     </Container>
   );
 }

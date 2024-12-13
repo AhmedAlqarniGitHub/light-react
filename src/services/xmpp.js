@@ -257,6 +257,19 @@ console.log(stanza.toString())
   logger.trace(stanza.toString());
 }
   
+
+async offline() {
+  logger.info("Sending unavailable presence and disconnecting...");
+  try {
+    await this.xmpp.send(xml("presence", { type: "unavailable" }));
+    await this.xmpp.stop();
+    logger.info("Disconnected successfully.");
+  } catch (err) {
+    logger.error(`Error during disconnect: ${err.message}`);
+  }
+}
+
+
 }
 
 export { MsgXmppClient, eventList };
