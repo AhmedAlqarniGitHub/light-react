@@ -48,9 +48,9 @@ const ContactCard = ({ contact, sendMessage, handleFetchVCard }) => {
         <Button variant="contained" color="primary" onClick={handleSendMessage}>
           Send Message
         </Button>
-        <Button variant="outlined" color="secondary" onClick={handleFetchCard}>
+        {/* <Button variant="outlined" color="secondary" onClick={handleFetchCard}>
           Fetch vCard
-        </Button>
+        </Button> */}
       </CardActions>
     </Card>
   );

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Container,
   Box,
@@ -44,21 +44,22 @@ function HomePage({ xmppManager, contacts, currentUser, onLogout, onThemeChange,
       >
         <Avatar
           src={currentUser?.photo || ""}
-          alt={`${currentUser?.name || currentUser?.jid}`}
+          alt={`${currentUser?.fullName || currentUser?.jid}`}
           sx={{
             width: 64,
             height: 64,
             bgcolor: currentUser?.photo ? "transparent" : "primary.main",
             mr: 2,
           }}
+          
         >
           {!currentUser?.photo &&
-            (currentUser?.name
-              ? currentUser.name[0].toUpperCase()
+            (currentUser?.fullName
+              ? currentUser.firstName[0].toUpperCase()+currentUser.lastName[0].toUpperCase()
               : currentUser.jid.slice(0, 2).toUpperCase())}
         </Avatar>
         <Box>
-          <Typography variant="h6">{currentUser?.name || currentUser?.jid}</Typography>
+          <Typography variant="h6">{currentUser?.fullName || currentUser?.jid}</Typography>
           <Typography variant="body2" color="textSecondary">
             Status: Online
           </Typography>

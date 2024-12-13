@@ -5,6 +5,8 @@ class XmppManager {
     this.client = null;
     this.contactListeners = [];
     this.isConnected = false;
+
+    window.XmppManager = this
   }
 
   async connect(service, username, password) {
@@ -23,13 +25,22 @@ class XmppManager {
         await this.client.connect();
         this.isConnected = true;
 
-        // Fetch roster and probe presence after login
+        await this.client.getVCard();
         await this.client.getRoster();
+        
       } catch (error) {
         console.error("XMPP connection error:", error.message);
         throw error;
       }
     }
+  }
+
+  async getRoster() {
+      // Fetch roster and probe presence after login
+      await this.client.getRoster();
+      for(let contact of this.client.contacts){
+        await this.getVCard(contact.jid);
+      }
   }
 
   addEventListener(event, callback) {
@@ -83,7 +94,7 @@ class XmppManager {
       const vCard = await this.client.getVCard(jid);
       if (vCard) {
         console.log(`Fetched vCard for ${jid}:`, vCard);
-        const contact = this.client.contacts.find((c) => c.jid === bareJID(jid));
+        const contact = this.client.contacts.find((c) => c.jid === jid);
         if (contact) {
           contact.firstName = vCard.firstName || "";
           contact.lastName = vCard.lastName || "";
