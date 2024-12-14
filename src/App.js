@@ -31,6 +31,7 @@ function AppContent({ isDarkTheme, setIsDarkTheme }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [contacts, setContacts] = useState([]);
   const [meetingComponent, setMeetingComponent] = useState(null);
+  const [currentCall, setCurrentCall] = useState(null); // Track current call
 
   const navigate = useNavigate();
 
@@ -64,12 +65,33 @@ function AppContent({ isDarkTheme, setIsDarkTheme }) {
 
     xmppManager.addEventListener(eventList.MESSAGE_RECEIVED, (message) => {
       const parsedMessage = JSON.parse(message.body || "{}");
-      if (parsedMessage.url) {
-        setMeetingComponent({ sender: message.from, url: parsedMessage.url });
-        navigate("/meeting-component");
+
+      // If we are currently in a call (two min window active)
+      if (currentCall && currentCall.status === "calling") {
+        // If we receive accepted for the same call
+        if (
+          parsedMessage.status === "accepted" &&
+          parsedMessage.roomId === currentCall.roomId &&
+          parsedMessage.jid === currentCall.jid
+        ) {
+          // Construct the meeting URL using domain, port, and roomId
+          const callUrl = `https://${parsedMessage.domain}:${parsedMessage.port}/${parsedMessage.roomId}`;
+          setMeetingComponent({ sender: message.from, url: callUrl });
+          navigate("/meeting-component");
+          setCurrentCall(null); // Clear the current call
+        }
+        // Otherwise, ignore any other invitations/messages while calling
+        return;
+      } else {
+        // No current call in progress
+        // Handle normal meeting invitations
+        if (parsedMessage.url) {
+          setMeetingComponent({ sender: message.from, url: parsedMessage.url });
+          navigate("/meeting-component");
+        }
       }
     });
-  }, [navigate]);
+  }, [navigate, currentCall]);
 
   return (
     <Routes>
@@ -84,6 +106,8 @@ function AppContent({ isDarkTheme, setIsDarkTheme }) {
             onLogout={handleLogout}
             onThemeChange={() => setIsDarkTheme(!isDarkTheme)}
             isDarkTheme={isDarkTheme}
+            currentCall={currentCall}
+            setCurrentCall={setCurrentCall}
           />
         }
       />
