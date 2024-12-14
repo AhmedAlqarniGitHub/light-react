@@ -41,6 +41,7 @@ class MsgXmppClient {
     this.#service = service;
     this.#username = username;
     this.#password = password;
+    this.myProfile = {jid: username}
 
     const uniqueResource = `MsgClientOffice-${Date.now()}`;
     this.xmpp = client({
@@ -55,6 +56,7 @@ class MsgXmppClient {
     this.currentUser = null;
 
     this.initializeXmppHandlers();
+    window.xmpp = this
   }
 
   initializeXmppHandlers() {
@@ -142,7 +144,6 @@ class MsgXmppClient {
     const show = stanza.getChildText("show"); // Presence subtype
     const presenceStatus = show ? STATUS[show.toUpperCase()] || STATUS.ONLINE : STATUS.ONLINE;
   
-    console.log(stanza.attrs)
     // Find the contact in the roster
     const contact = this.contacts.find((c) => c.jid === from);
   
@@ -153,7 +154,7 @@ class MsgXmppClient {
       // Emit the updated contacts list
       this.emitEvent(eventList.CONTACT_STATUS_CHANGED, this.contacts);
   
-      logger.info(`Presence updated for ${from}: ${contact.presence}`);
+      // logger.info(`Presence updated for ${from}: ${contact.presence}`);
     } else {
       // Log a warning for unknown presence updates
       logger.warn(`Received presence for unknown contact: ${from}`);
@@ -202,16 +203,21 @@ class MsgXmppClient {
     await this.xmpp.send(stanza);
   }
 
-  /*********** vCard Section XEP-0054: vcard-temp ***********/
+  async subscribed(jid) {
+    const stanza = xml("presence", { to: jid, type: "subscribed" });
+    await this.xmpp.send(stanza);
+  }
+
+/*********** vCard4 Retrieval ***********/
 
 /**
- * Retrieving vCard by sending an IQ-get,
- * @param {jid | null} jid with null user will retrieves his or her own vCard
- * @returns {Object | null} Returns the parsed vCard or null if an error occurs
+ * Retrieve vCard4 information by sending an IQ-get.
+ * @param {jid | null} jid - If null, retrieves the vCard4 for the current user.
+ * @returns {Object | null} - Returns the parsed vCard4 or null if an error occurs.
  */
 async getVCard(jid) {
-  logger.info(`Fetching vCard for ${jid || "current user"} ...`);
   let para = {};
+
   if (!jid) {
     para = {
       from: this.currentUser,
@@ -226,30 +232,100 @@ async getVCard(jid) {
     };
   }
 
-  const req = xml("iq", para, xml("vCard", { xmlns: "vcard-temp" }));
+  const vcardRequest = xml(
+    'iq',
+    para,
+    xml('vcard', { xmlns: 'urn:ietf:params:xml:ns:vcard-4.0' })
+  );
 
   try {
-    const res = await this.xmpp.iqCaller.get(req);
-console.log("ddd",res)
+    const response = await this.xmpp.iqCaller.request(vcardRequest);
+    const vcardElement = response.getChild('vcard', 'urn:ietf:params:xml:ns:vcard-4.0');
+    if (!vcardElement) {
+      logger.warn(`No vCard4 element found for ${jid || 'current user'}`);
+      return null;
+    }
+
     const vCard = {};
-    res.getChild("vCard").children.forEach((child) => {
-      if (child.name === "FN") {
-        const [firstName, lastName] = child.text().split(" ");
-        vCard.firstName = firstName || "";
-        vCard.lastName = lastName || "";
-      }
-      if (child.name === "PHOTO") {
-        vCard.photo = child.getChildText("BINVAL") || "";
+    vcardElement.children.forEach((child) => {
+      if (child.is('fn')) {
+        vCard.fullName = child.getChildText('text') || '';
+      } else if (child.is('n')) {
+        vCard.lastName = child.getChild('surname')?.getChildText('text') || '';
+        vCard.firstName = child.getChild('given')?.getChildText('text') || '';
+      } else if (child.is('org')) {
+        vCard.organization = child.getChildText('text') || '';
+      } else if (child.is('adr')) {
+        vCard.country = child.getChild('country')?.getChildText('text') || '';
+      } else if (child.is('note')) {
+        vCard.description = child.getChildText('text') || '';
+      } else {
+        logger.debug(`Unhandled vCard4 field: ${child.name}`);
       }
     });
 
-    logger.info(`vCard fetched for ${jid || "current user"}: ${JSON.stringify(vCard)}`);
+    if(!jid) {
+      this.myProfile.fullName = vCard.fullName;
+      this.myProfile.firstName = vCard.firstName;
+      this.myProfile.lastName = vCard.lastName;
+      this.myProfile.organization = vCard.organization;
+      this.myProfile.country = vCard.country;
+      this.myProfile.description = vCard.description;
+    }
+
+    logger.info(`vCard4 fetched for ${jid || 'current user'}: ${JSON.stringify(vCard)}`);
     return vCard;
   } catch (err) {
-    logger.error(`Failed to fetch vCard for ${jid || "current user"}: ${err.message}`);
+    logger.error(`Failed to fetch vCard4 for ${jid || 'current user'}: ${err.message}`);
     return null;
   }
 }
+
+
+async setVcard(firstname, lastname, company, country, description) {
+  // Construct the vCard4 XML stanza
+  const vCard = xml(
+    'vcard',
+    { xmlns: 'urn:ietf:params:xml:ns:vcard-4.0' },
+    xml('fn', {},
+      xml('text', {}, `${firstname} ${lastname}`)
+    ),
+    xml('n', {},
+      xml('surname', {},
+        xml('text', {}, lastname)
+      ),
+      xml('given', {},
+        xml('text', {}, firstname)
+      )
+    ),
+    xml('org', {},
+      xml('text', {}, company)
+    ),
+    xml('adr', {},
+      xml('country', {},
+        xml('text', {}, country)
+      )
+    ),
+    xml('note', {},
+      xml('text', {}, description)
+    )
+  );
+
+  try {
+    // Send the IQ 'set' request with the vCard
+    await this.xmpp.iqCaller.request(
+      xml(
+        'iq',
+        { type: 'set' },
+        vCard
+      )
+    );
+    logger.log('vCard updated successfully.');
+  } catch (err) {
+    logger.error('Error updating vCard:', err);
+  }
+}
+
 
 async iqHandel(stanza) {
   logger.debug(`received iq from ${stanza.attrs.from}`);

@@ -5,7 +5,7 @@ import { Phone, Delete } from "@mui/icons-material";
 const ContactCard = ({ contact, sendMessage, handleRemove }) => {
   const getAvatarInitials = (contact) => {
     if (contact.firstName || contact.lastName) {
-      return `${contact.firstName?.[0] || ""}${contact.lastName?.[0] || ""}`.toUpperCase();
+      return `${contact.firstName[0] || ""}${contact.lastName[0] || ""}`.toUpperCase();
     }
     return contact.jid?.slice(0, 2).toUpperCase();
   };
@@ -77,7 +77,10 @@ const ContactCard = ({ contact, sendMessage, handleRemove }) => {
         }}
       >
         <Typography variant="h6" noWrap>
-          {contact.jid.split("@")[0]} {/* JID without domain */}
+          {contact.firstName && contact.lastName ? contact.firstName[0].toUpperCase()+contact.firstName.substr(1,)
+          +" "
+          +contact.lastName[0].toUpperCase()+contact.lastName.substr(1,)
+          : contact.jid.split("@")[0]} {/* JID without domain */}
         </Typography>
         <Typography variant="body2" color="textSecondary">
           {contact.presence || "unknown"}

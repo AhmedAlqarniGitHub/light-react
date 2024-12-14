@@ -53,7 +53,8 @@ function AppContent({ isDarkTheme, setIsDarkTheme }) {
       xmppManager
         .connect(service, username, password)
         .then(() => {
-          xmppManager.client.getRoster();
+          xmppManager.getRoster(); 
+          setCurrentUser(xmppManager.client.myProfile); 
         })
         .catch((err) => console.error("Error reconnecting:", err.message));
     } else {
