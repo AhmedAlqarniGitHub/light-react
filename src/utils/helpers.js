@@ -17,3 +17,15 @@ export const generateToken = (roomId) => {
   //return jwt.sign(payload, privateKey, { algorithm: "RS256", expiresIn: "1h" });
   return "key"
 };
+
+export function createMeetingMessage(jid, type) {
+    const roomId = generateRoomId();
+    const token = generateToken(roomId);
+    return {
+      domain: process.env.REACT_APP_DOMAIN,
+      port: process.env.REACT_APP_MEET_PORT,
+      token,
+      roomId,
+      type,
+    };
+  }

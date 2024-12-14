@@ -2,7 +2,7 @@ import React from "react";
 import { Box, Typography, Avatar, IconButton, Badge } from "@mui/material";
 import { Phone, Delete } from "@mui/icons-material";
 
-const ContactCard = ({ contact, sendMessage, handleRemove }) => {
+const ContactCard = ({ contact, sendInvitation, handleRemove }) => {
   const getAvatarInitials = (contact) => {
     if (contact.firstName || contact.lastName) {
       return `${contact.firstName[0] || ""}${contact.lastName[0] || ""}`.toUpperCase();
@@ -92,7 +92,7 @@ const ContactCard = ({ contact, sendMessage, handleRemove }) => {
         {/* Call Button */}
         <IconButton
           color="primary"
-          onClick={() => sendMessage(contact.jid)}
+          onClick={() => sendInvitation(contact.jid)}
           sx={{
             bgcolor: "success.light",
             "&:hover": { bgcolor: "success.main" },

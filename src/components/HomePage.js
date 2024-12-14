@@ -7,13 +7,17 @@ import {
   IconButton,
   CircularProgress,
   Grid,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import { Logout, Contacts, LightMode, DarkMode, VideoCall } from "@mui/icons-material";
 import ContactCard from "./ContactCard";
-import { generateRoomId, generateToken } from "../utils/helpers";
+import { createMeetingMessage } from "../utils/helpers"; // Import the new helper
 
 function HomePage({ xmppManager, contacts, currentUser, onLogout, onThemeChange, isDarkTheme }) {
   const [showContacts, setShowContacts] = useState(false);
+  const [infoMessage, setInfoMessage] = useState("");
+  const [showInfoSnackbar, setShowInfoSnackbar] = useState(false);
 
   if (!currentUser) {
     return (
@@ -29,6 +33,25 @@ function HomePage({ xmppManager, contacts, currentUser, onLogout, onThemeChange,
       </Box>
     );
   }
+
+  const handleSendMessage = (jid) => {
+    // Find the contact to check their presence
+    const contact = contacts.find((c) => c.jid === jid);
+    if (contact && contact.presence === "online") {
+      const message = createMeetingMessage(jid, "call");
+      xmppManager.sendInvitation(jid, JSON.stringify(message));
+      console.log(`Message sent to ${jid}:`, message);
+    } else {
+      // Contact not online, show info message
+      setInfoMessage("You cannot call this user because they are not online.");
+      setShowInfoSnackbar(true);
+    }
+  };
+
+  const handleCloseInfo = () => {
+    setShowInfoSnackbar(false);
+    setInfoMessage("");
+  };
 
   return (
     <Container sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
@@ -52,21 +75,24 @@ function HomePage({ xmppManager, contacts, currentUser, onLogout, onThemeChange,
             bgcolor: currentUser?.photo ? "transparent" : "primary.main",
             mr: 2,
           }}
-          
         >
           {!currentUser?.photo &&
             (currentUser.firstName && currentUser.lastName
-              ? currentUser.firstName[0].toUpperCase()
-              +currentUser.lastName[0].toUpperCase()
+              ? currentUser.firstName[0].toUpperCase() + currentUser.firstName.substr(1) +
+                " " +
+                currentUser.lastName[0].toUpperCase() + currentUser.lastName.substr(1)
               : currentUser.jid.slice(0, 2).toUpperCase())}
         </Avatar>
         <Box>
-          <Typography variant="h6">{
-            currentUser.firstName && currentUser.lastName ? 
-          currentUser.firstName[0].toUpperCase()+currentUser.firstName.substr(1,)
-          +" "
-          +currentUser.lastName[0].toUpperCase()+currentUser.lastName.substr(1,) 
-          : currentUser?.jid}</Typography>
+          <Typography variant="h6">
+            {currentUser.firstName && currentUser.lastName
+              ? currentUser.firstName[0].toUpperCase() +
+                currentUser.firstName.substr(1) +
+                " " +
+                currentUser.lastName[0].toUpperCase() +
+                currentUser.lastName.substr(1)
+              : currentUser?.jid}
+          </Typography>
           <Typography variant="body2" color="textSecondary">
             Status: Online
           </Typography>
@@ -115,18 +141,7 @@ function HomePage({ xmppManager, contacts, currentUser, onLogout, onThemeChange,
               <Grid item xs={12} sm={6} md={4} key={contact.jid}>
                 <ContactCard
                   contact={contact}
-                  sendMessage={(jid) => {
-                    const roomId = generateRoomId();
-                    const token = generateToken(roomId);
-                    const message = {
-                      domain: process.env.REACT_APP_DOMAIN,
-                      port:process.env.REACT_APP_MEET_PORT,
-                      token,
-                      roomId,
-                    };
-                    xmppManager.sendMessage(jid, JSON.stringify(message));
-                    console.log(`Message sent to ${jid}:`, message);
-                  }}
+                  sendInvitation={handleSendMessage}
                   handleRemove={(jid) => {
                     xmppManager.removeUser(jid);
                     console.log(`User removed: ${jid}`);
@@ -157,6 +172,18 @@ function HomePage({ xmppManager, contacts, currentUser, onLogout, onThemeChange,
           {isDarkTheme ? <LightMode /> : <DarkMode />}
         </IconButton>
       </Box>
+
+      {/* Info Snackbar */}
+      <Snackbar
+        open={showInfoSnackbar}
+        autoHideDuration={3000}
+        onClose={handleCloseInfo}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={handleCloseInfo} severity="info" sx={{ width: '100%' }}>
+          {infoMessage}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 }

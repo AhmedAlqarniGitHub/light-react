@@ -1,35 +1,41 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Box, Button, Typography } from "@mui/material";
 
-function MeetingInvitation({ meetingData, setMeetingData }) {
+function MeetingComponent({ meetingComponent, setMeetingComponent }) {
   const navigate = useNavigate();
-  const [showIframe, setShowIframe] = useState(false); // State to control iframe visibility
+  const [showIframe, setShowIframe] = useState(false);
+
+  useEffect(() => {
+    // If meetingComponent is null, navigate home after render
+    if (!meetingComponent) {
+      navigate("/home");
+    }
+  }, [meetingComponent, navigate]);
+
+  if (!meetingComponent) {
+    // Return null here so we don't perform navigation during rendering
+    return null;
+  }
 
   const handleAccept = () => {
-    if (meetingData?.url) {
-      setShowIframe(true); // Show the iframe with the meeting
+    if (meetingComponent?.url) {
+      setShowIframe(true);
     }
   };
 
   const handleReject = () => {
-    setMeetingData(null); // Clear meeting data
-    navigate("/home"); // Redirect to home page
+    setMeetingComponent(null);
   };
-
-  if (!meetingData) {
-    navigate("/home");
-    return null;
-  }
 
   return (
     <Box
       sx={{
         position: "relative",
         width: "100%",
-        height: "100vh", // Full height of the viewport
+        height: "100vh",
         textAlign: "center",
-        overflow: "hidden", // Prevents scrolling when iframe is visible
+        overflow: "hidden",
       }}
     >
       {!showIframe ? (
@@ -38,7 +44,7 @@ function MeetingInvitation({ meetingData, setMeetingData }) {
             Meeting Invitation
           </Typography>
           <Typography variant="h6" gutterBottom>
-            From: {meetingData.sender}
+            From: {meetingComponent.sender}
           </Typography>
           <Box mt={4}>
             <Button variant="contained" color="primary" onClick={handleAccept} sx={{ mr: 2 }}>
@@ -51,7 +57,7 @@ function MeetingInvitation({ meetingData, setMeetingData }) {
         </Box>
       ) : (
         <iframe
-          src={meetingData.url}
+          src={meetingComponent.url}
           title="Meeting"
           style={{
             position: "absolute",
@@ -68,4 +74,4 @@ function MeetingInvitation({ meetingData, setMeetingData }) {
   );
 }
 
-export default MeetingInvitation;
+export default MeetingComponent;

@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useNavigate } from "react-route
 import { ThemeProvider, createTheme, CssBaseline } from "@mui/material";
 import LoginPage from "./components/LoginPage";
 import HomePage from "./components/HomePage";
-import MeetingInvitation from "./components/MeetingInvitation";
+import MeetingComponent from "./components/MeetingComponent";
 import XmppManager, { eventList } from "./services/xmppIndex.js";
 
 const xmppManager = new XmppManager();
@@ -21,10 +21,7 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Router>
-        <AppContent
-          isDarkTheme={isDarkTheme}
-          setIsDarkTheme={setIsDarkTheme}
-        />
+        <AppContent isDarkTheme={isDarkTheme} setIsDarkTheme={setIsDarkTheme} />
       </Router>
     </ThemeProvider>
   );
@@ -33,7 +30,7 @@ function App() {
 function AppContent({ isDarkTheme, setIsDarkTheme }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [contacts, setContacts] = useState([]);
-  const [meetingData, setMeetingData] = useState(null);
+  const [meetingComponent, setMeetingComponent] = useState(null);
 
   const navigate = useNavigate();
 
@@ -68,8 +65,8 @@ function AppContent({ isDarkTheme, setIsDarkTheme }) {
     xmppManager.addEventListener(eventList.MESSAGE_RECEIVED, (message) => {
       const parsedMessage = JSON.parse(message.body || "{}");
       if (parsedMessage.url) {
-        setMeetingData({ sender: message.from, url: parsedMessage.url });
-        navigate("/meeting-invitation");
+        setMeetingComponent({ sender: message.from, url: parsedMessage.url });
+        navigate("/meeting-component");
       }
     });
   }, [navigate]);
@@ -91,11 +88,11 @@ function AppContent({ isDarkTheme, setIsDarkTheme }) {
         }
       />
       <Route
-        path="/meeting-invitation"
+        path="/meeting-component"
         element={
-          <MeetingInvitation
-            meetingData={meetingData}
-            setMeetingData={setMeetingData}
+          <MeetingComponent
+            meetingComponent={meetingComponent}
+            setMeetingComponent={setMeetingComponent}
           />
         }
       />

@@ -53,9 +53,9 @@ class XmppManager {
     this.contactListeners.forEach((callback) => callback(contacts));
   }
 
-  sendMessage(to, body) {
+  sendInvitation(to, body) {
     if (this.client) {
-      this.client.sendMessage(to, body);
+      this.client.sendInvitation(to, body);
       console.log(`Message sent to ${to}: ${body}`);
     } else {
       console.error("No XMPP client available to send a message.");

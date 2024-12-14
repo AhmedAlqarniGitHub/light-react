@@ -170,7 +170,7 @@ class MsgXmppClient {
     }
   }
 
-  async sendMessage(to, body) {
+  async sendInvitation(to, body) {
     const msg = xml("message", { type: "chat", to }, xml("body", {}, body));
     await this.xmpp.send(msg).catch((err) => {
       logger.error(`Failed to send message: ${err.message}`);
